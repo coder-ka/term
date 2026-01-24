@@ -1,7 +1,7 @@
 {
   "name": "@coder-ka/term",
   "version": "1.0.0",
-  "description": "",
+  "description": "A small library for reactive programming.",
   "bin": "dist/bin.cjs",
   "main": "./dist/index.cjs",
   "exports": {
