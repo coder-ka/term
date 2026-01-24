@@ -68,7 +68,7 @@ export function createEffect(
     });
   });
 
-  function effectFn() {
+  function invoke() {
     const isDirty =
       dirtyCheckDeps.length === 0 ||
       dirtyCheckDeps.reduce((isDirty, dep) => {
@@ -88,10 +88,9 @@ export function createEffect(
   const timingDepsUnsubscribes = timingDeps.map((dep) =>
     dep.subscribe(() => {
       if (dirtyCheckDeps.some((x) => !x.checkInitialized())) return;
-      queueMicrotask(effectFn);
+      invoke();
     }),
   );
-  if (timingDeps.length === 0) queueMicrotask(effectFn);
 
   return {
     dispose: () => {
