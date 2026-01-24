@@ -11,6 +11,8 @@ npm i @coder-ka/term
 ## Hello World
 
 ```ts
+import { createTerm, createEffect } from "@coder-ka/term";
+
 const GreetTo = createTerm<string>();
 
 createEffect(
