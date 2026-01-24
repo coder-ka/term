@@ -10,6 +10,7 @@ export type Term<T> = {
   set(value: T): void;
   subscribe(fn: (value: T) => void): () => void;
   dirtyMap: WeakMap<object, boolean>;
+  checkInitialized: () => boolean;
 };
 
 export function createTerm<T>(): Term<T> {
@@ -22,7 +23,7 @@ export function createTerm<T>(): Term<T> {
       // Callable form of getter
       (): T;
     },
-    Pick<Term<T>, "set" | "subscribe" | "dirtyMap">
+    Pick<Term<T>, "set" | "subscribe" | "dirtyMap" | "checkInitialized">
   >(
     function get() {
       if (!initialized) {
@@ -46,45 +47,61 @@ export function createTerm<T>(): Term<T> {
         };
       },
       dirtyMap: new WeakMap<object, boolean>(),
+      checkInitialized() {
+        return initialized;
+      },
     },
   );
 }
 
 export function createEffect(
   fn: () => void | (() => void),
-  deps: Term<unknown>[],
+  dirtyCheckDeps: Term<unknown>[],
+  timingDeps: Term<unknown>[],
 ) {
   let cleanup: void | (() => void) = undefined;
 
-  const unsubscribes = deps.map((dep) => {
-    dep.dirtyMap.set(fn, true);
+  const dirtyCheckDepsUnsubscribes = dirtyCheckDeps.map((dep) => {
+    dep.dirtyMap.set(fn, false);
     return dep.subscribe(() => {
       dep.dirtyMap.set(fn, true);
     });
   });
 
+  function effectFn() {
+    const isDirty =
+      dirtyCheckDeps.length === 0 ||
+      dirtyCheckDeps.reduce((isDirty, dep) => {
+        const depIsDirty = dep.dirtyMap.get(fn) === true;
+        dep.dirtyMap.set(fn, false);
+        return isDirty || depIsDirty;
+      }, false);
+
+    if (!isDirty) return;
+
+    if (cleanup) {
+      cleanup();
+    }
+    cleanup = fn();
+  }
+
+  const timingDepsUnsubscribes = timingDeps.map((dep) =>
+    dep.subscribe(() => {
+      if (dirtyCheckDeps.some((x) => !x.checkInitialized())) return;
+      queueMicrotask(effectFn);
+    }),
+  );
+  if (timingDeps.length === 0) queueMicrotask(effectFn);
+
   return {
-    invoke: () => {
-      const isDirty =
-        deps.length === 0 ||
-        deps.reduce((isDirty, dep) => {
-          const depIsDirty = dep.dirtyMap.get(fn) === true;
-          dep.dirtyMap.set(fn, false);
-          return isDirty || depIsDirty;
-        }, false);
-
-      if (!isDirty) return;
-
-      if (cleanup) {
-        cleanup();
-      }
-      cleanup = fn();
-    },
     dispose: () => {
       if (cleanup) {
         cleanup();
       }
-      for (const unsubscribe of unsubscribes) {
+      for (const unsubscribe of dirtyCheckDepsUnsubscribes) {
+        unsubscribe();
+      }
+      for (const unsubscribe of timingDepsUnsubscribes) {
         unsubscribe();
       }
     },
