@@ -14,11 +14,11 @@ npm i @coder-ka/term
 const GreetTo = createTerm<string>();
 
 createEffect(
-() => {
-    console.log(`Hello, ${GreetTo()}!`);
-},
-[GreetTo],
-[GreetTo],
+  () => {
+      console.log(`Hello, ${GreetTo()}!`);
+  },
+  [GreetTo],
+  [GreetTo],
 );
 
 GreetTo.set("World");
