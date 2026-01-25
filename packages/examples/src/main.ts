@@ -1,47 +1,43 @@
-import { createTerm, createEffect } from "@coder-ka/term";
+import { createEffect, createTerm } from "@coder-ka/term";
+import { Counter } from "./Counter";
 
-const Count = createTerm<number>();
-const Button = createTerm<HTMLButtonElement>();
-
-createEffect(
-  () => {
-    const button = Button();
-    button.textContent = `${Count()}`;
-  },
-  [Button, Count],
-  [Button, Count],
-);
+const DOMContentLoaded = createTerm<Event>();
 
 createEffect(
   () => {
-    const button = Button();
+    // create component instance
+    const counter = Counter();
 
-    function onClick() {
-      Count.set(Count() + 1);
-    }
+    // define effects
+    const effects = [
+      createEffect(
+        () => {
+          const button = counter.terms.Button();
+          const app = document.getElementById("app")!;
+          app.appendChild(button);
+          return () => {
+            app.removeChild(button);
+          };
+        },
+        [counter.terms.Button],
+        [counter.terms.Button],
+      ),
+    ];
 
-    button.addEventListener("click", onClick);
+    // init component instance
+    const button = document.createElement("button");
+    counter.terms.Button.set(button);
+    counter.terms.Count.set(0);
 
     return () => {
-      button.removeEventListener("click", onClick);
+      counter.dispose();
+      effects.forEach((eff) => eff.dispose());
     };
   },
-  [Button],
-  [Button],
+  [DOMContentLoaded],
+  [DOMContentLoaded],
 );
 
-createEffect(
-  () => {
-    const button = Button();
-    document.body.appendChild(button);
-    return () => {
-      document.body.removeChild(button);
-    };
-  },
-  [Button],
-  [Button],
-);
-
-const button = document.createElement("button");
-Button.set(button);
-Count.set(0);
+document.addEventListener("DOMContentLoaded", (e) => {
+  DOMContentLoaded.set(e);
+});
